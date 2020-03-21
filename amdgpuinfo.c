@@ -21,15 +21,16 @@
 #include <regex.h>
 #include <strings.h>
 
-#ifdef __APPLE_CC__
-#include <OpenCL/opencl.h>
-#include <OpenCL/cl_ext.h>
-#else
-#include <CL/cl.h>
-#include <CL/cl_ext.h>
-#endif
-#ifdef CL_DEVICE_TOPOLOGY_AMD
-  #define USE_OPENCL 1
+#ifdef USE_OPENCL
+  #ifdef __APPLE_CC__
+  #include <OpenCL/opencl.h>
+  #include <OpenCL/cl_ext.h>
+  #else
+  #include <CL/cl.h>
+  #include <CL/cl_ext.h>
+  #endif
+
+  #include <hwloc/opencl.h>
 #endif
 
 #define VERSION "AMDGPUInfo v0.1"
@@ -667,10 +668,10 @@ static int opencl_get_devices()
 
                 // if vendor AMD, lookup pci ID
                 if (intval == AMD_PCI_VENDOR_ID) {
-                  cl_device_topology_amd amdtopo;
+                  hwloc_cl_device_topology_amd amdtopo;
                   gpu_t *dev;
 
-                  if ((status = clGetDeviceInfo(devices[i], CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL)) == CL_SUCCESS) {
+                  if ((status = clGetDeviceInfo(devices[i], HWLOC_CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL)) == CL_SUCCESS) {
 
                     if ((dev = find_device((u8)amdtopo.pcie.bus, (u8)amdtopo.pcie.device, (u8)amdtopo.pcie.function)) != NULL) {
                       dev->opencl_platform = p;
@@ -929,6 +930,7 @@ int main(int argc, char *argv[])
   // get open cl device ids and link them to pci devices found
   if (opt_opencl_enabled) {
     int numopencl = opencl_get_devices();
+    printf ("Found %d OpenCL devices\n", numopencl);
 
     // reorder by opencl id?
     if (opt_opencl_order) {
