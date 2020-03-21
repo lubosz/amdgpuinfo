@@ -20,14 +20,6 @@
 #include <stdarg.h>
 #include <regex.h>
 
-#ifdef __APPLE_CC__
-#include <OpenCL/opencl.h>
-#include <OpenCL/cl_ext.h>
-#else
-#include <CL/cl.h>
-#include <CL/cl_ext.h>
-#endif
-
 #define VERSION "AMDGPUInfo v0.1"
 
 #define LOG_INFO 1
