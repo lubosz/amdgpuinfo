@@ -681,19 +681,19 @@ static cl_platform_id *opencl_get_platforms(int *platform_count)
   return platforms;
 }
 
-static int opencl_get_devices()
+static void opencl_get_devices()
 {
   cl_int res;
   cl_platform_id *platforms = NULL;
   cl_device_id *devices;
   cl_uint numDevices;
-  int p, numPlatforms, ret = -1;
+  int p, numPlatforms;
 
   platforms = opencl_get_platforms(&numPlatforms);
   printf("Found %d OpenCL platforms.\n", numPlatforms);
   if (platforms == NULL) {
     print(LOG_ERROR, "No OpenCL platforms detected.\n");
-    return 0;
+    return;
   }
 
   for (p = 0; p < numPlatforms; ++p) {
@@ -702,22 +702,23 @@ static int opencl_get_devices()
       print(LOG_ERROR,
             "clGetDeviceIDs failed: %s (%d).\n",
             cl_result_to_string(res), res);
-      return 0;
+      return;
     }
+    printf ("Found %d OpenCL devices\n", numDevices);
 
     if (!numDevices)
-      return 0;
+      return;
 
     devices = (cl_device_id *)malloc(numDevices*sizeof(cl_device_id));
     if (devices == NULL) {
       print(LOG_ERROR, "malloc() failed in opencl_get_devices().\n");
-      return 0;
+      return;
     }
 
     res = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
     if (res != CL_SUCCESS) {
       print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get OpenCL devices.\n");
-      return 0;
+      return;
     }
 
     unsigned int i;
@@ -734,7 +735,7 @@ static int opencl_get_devices()
        res = clGetDeviceInfo(devices[i], HWLOC_CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL);
         if (res != CL_SUCCESS) {
           print(LOG_ERROR, "CL_DEVICE_TOPOLOGY_AMD Failed: Unable to map OpenCL device to PCI device.\n");
-          return 0;
+          return;
         }
 
         dev = find_device((u8)amdtopo.pcie.bus, (u8)amdtopo.pcie.device, (u8)amdtopo.pcie.function);
@@ -743,7 +744,6 @@ static int opencl_get_devices()
           dev->opencl_id = i;
         }
       }
-      ret = numDevices;
     }
 
     free(devices);
@@ -753,8 +753,6 @@ static int opencl_get_devices()
     free(platforms);
     platforms = NULL;
   }
-
-  return ret;
 }
 #endif
 
@@ -976,9 +974,7 @@ int main(int argc, char *argv[])
 #ifdef USE_OPENCL
   // get open cl device ids and link them to pci devices found
   if (opt_opencl_enabled) {
-    int numopencl = opencl_get_devices();
-    printf ("Found %d OpenCL devices\n", numopencl);
-
+    opencl_get_devices();
     // reorder by opencl id?
     if (opt_opencl_order) {
       opencl_reorder();
