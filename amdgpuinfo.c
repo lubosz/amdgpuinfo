@@ -611,38 +611,40 @@ static void opencl_reorder()
 
 static cl_platform_id *opencl_get_platforms(int *platform_count)
 {
-  cl_int status;
+  cl_int res;
   cl_platform_id *platforms = NULL;
   cl_uint numPlatforms;
 
   *platform_count = 0;
 
-  if ((status = clGetPlatformIDs(0, NULL, &numPlatforms)) == CL_SUCCESS) {
-    if (numPlatforms > 0) {
-      if ((platforms = (cl_platform_id *)malloc(numPlatforms*sizeof(cl_platform_id))) != NULL) {
-        if (((status = clGetPlatformIDs(numPlatforms, platforms, NULL)) == CL_SUCCESS)) {
-          *platform_count = (int)numPlatforms;
-          return platforms;
-        } else {
-          print(LOG_ERROR, "clGetPlatformIDs() failed: Unable to get OpenCL platform ID.\n");
-        }
-      } else {
-        print(LOG_ERROR, "malloc() failed in opencl_get_platform().\n");
-      }
-    } else {
-      print(LOG_ERROR, "No OpenCL platforms found.\n");
-    }
-  } else {
-    print(LOG_ERROR, "clGetPlatformIDs() failed: Unable to get number of OpenCL platforms.\n");
+  res = clGetPlatformIDs(0, NULL, &numPlatforms);
+  if (res != CL_SUCCESS) {
+    print(LOG_ERROR, "clGetPlatformIDs() failed: Unable to get "
+                     "number of OpenCL platforms.\n");
+    return NULL;
   }
 
-  // free memory
+  if (numPlatforms == 0) {
+    print(LOG_ERROR, "No OpenCL platforms found.\n");
+    return NULL;
+  }
+
+  platforms = (cl_platform_id *)malloc(numPlatforms*sizeof(cl_platform_id));
   if (platforms == NULL) {
-    free(platforms);
-    platforms = NULL;
+    print(LOG_ERROR, "malloc() failed in opencl_get_platform().\n");
+    return NULL;
   }
 
-  return NULL;
+  res = clGetPlatformIDs(numPlatforms, platforms, NULL);
+  if (res != CL_SUCCESS) {
+    free(platforms);
+    print(LOG_ERROR, "clGetPlatformIDs() failed: "
+                     "Unable to get OpenCL platform ID.\n");
+    return NULL;
+  }
+
+  *platform_count = (int)numPlatforms;
+  return platforms;
 }
 
 static int opencl_get_devices()
