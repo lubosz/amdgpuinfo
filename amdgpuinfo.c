@@ -647,59 +647,67 @@ static cl_platform_id *opencl_get_platforms(int *platform_count)
 
 static int opencl_get_devices()
 {
-  cl_int status;
+  cl_int res;
   cl_platform_id *platforms = NULL;
   cl_device_id *devices;
   cl_uint numDevices;
   int p, numPlatforms, ret = -1;
 
-  if ((platforms = opencl_get_platforms(&numPlatforms)) != NULL) {
-    for(p = 0; p < numPlatforms; ++p) {
-      if ((status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices)) == CL_SUCCESS) {
-        if (numDevices) {
-          if ((devices = (cl_device_id *)malloc(numDevices*sizeof(cl_device_id))) != NULL) {
-            if ((status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, NULL)) == CL_SUCCESS) {
-              unsigned int i;
-              cl_uint intval;
-
-              for (i = 0;i < numDevices; ++i)
-              {
-                clGetDeviceInfo(devices[i], CL_DEVICE_VENDOR_ID, sizeof(intval), &intval, NULL);
-
-                // if vendor AMD, lookup pci ID
-                if (intval == AMD_PCI_VENDOR_ID) {
-                  hwloc_cl_device_topology_amd amdtopo;
-                  gpu_t *dev;
-
-                  if ((status = clGetDeviceInfo(devices[i], HWLOC_CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL)) == CL_SUCCESS) {
-
-                    if ((dev = find_device((u8)amdtopo.pcie.bus, (u8)amdtopo.pcie.device, (u8)amdtopo.pcie.function)) != NULL) {
-                      dev->opencl_platform = p;
-                      dev->opencl_id = i;
-                    }
-                  } else {
-                    print(LOG_ERROR, "CL_DEVICE_TOPOLOGY_AMD Failed: Unable to map OpenCL device to PCI device.\n");
-                  }
-                }
-
-                ret = numDevices;
-              }
-            } else {
-              print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get OpenCL devices.\n");
-            }
-
-            free(devices);
-          } else {
-            print(LOG_ERROR, "malloc() failed in opencl_get_devices().\n");
-          }
-        }
-      } else {
-        print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get the number of OpenCL devices.\n");
-      }
-    }
-  }
-  else {
+  platforms = opencl_get_platforms(&numPlatforms);
+  if (platforms == NULL) {
     print(LOG_ERROR, "No OpenCL platforms detected.\n");
+    return 0;
+  }
+
+  for (p = 0; p < numPlatforms; ++p) {
+    res = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
+    if (res != CL_SUCCESS) {
+      print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get the number of OpenCL devices.\n");
+      return 0;
+    }
+
+    if (!numDevices)
+      return 0;
+
+    devices = (cl_device_id *)malloc(numDevices*sizeof(cl_device_id));
+    if (devices == NULL) {
+      print(LOG_ERROR, "malloc() failed in opencl_get_devices().\n");
+      return 0;
+    }
+
+    res = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+    if (res != CL_SUCCESS) {
+      print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get OpenCL devices.\n");
+      return 0;
+    }
+
+    unsigned int i;
+    cl_uint intval;
+
+    for (i = 0;i < numDevices; ++i) {
+      clGetDeviceInfo(devices[i], CL_DEVICE_VENDOR_ID, sizeof(intval), &intval, NULL);
+
+      // if vendor AMD, lookup pci ID
+      if (intval == AMD_PCI_VENDOR_ID) {
+        hwloc_cl_device_topology_amd amdtopo;
+        gpu_t *dev;
+
+       res = clGetDeviceInfo(devices[i], HWLOC_CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL);
+        if (res != CL_SUCCESS) {
+          print(LOG_ERROR, "CL_DEVICE_TOPOLOGY_AMD Failed: Unable to map OpenCL device to PCI device.\n");
+          return 0;
+        }
+
+        dev = find_device((u8)amdtopo.pcie.bus, (u8)amdtopo.pcie.device, (u8)amdtopo.pcie.function);
+        if (dev != NULL) {
+          dev->opencl_platform = p;
+          dev->opencl_id = i;
+        }
+      }
+      ret = numDevices;
+    }
+
+    free(devices);
   }
 
   if (platforms != NULL) {
