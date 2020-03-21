@@ -548,6 +548,39 @@ static void free_devices()
  * OpenCL functions
  ***********************************************/
 #ifdef USE_OPENCL
+
+#define ENUM_TO_STR(r) case r: return #r
+const char*
+cl_result_to_string (cl_int result)
+{
+  switch (result)
+    {
+      ENUM_TO_STR(CL_SUCCESS);
+      ENUM_TO_STR(CL_DEVICE_NOT_FOUND);
+      ENUM_TO_STR(CL_DEVICE_NOT_AVAILABLE);
+      ENUM_TO_STR(CL_COMPILER_NOT_AVAILABLE);
+      ENUM_TO_STR(CL_MEM_OBJECT_ALLOCATION_FAILURE);
+      ENUM_TO_STR(CL_OUT_OF_RESOURCES);
+      ENUM_TO_STR(CL_OUT_OF_HOST_MEMORY);
+      ENUM_TO_STR(CL_PROFILING_INFO_NOT_AVAILABLE);
+      ENUM_TO_STR(CL_MEM_COPY_OVERLAP);
+      ENUM_TO_STR(CL_IMAGE_FORMAT_MISMATCH);
+      ENUM_TO_STR(CL_IMAGE_FORMAT_NOT_SUPPORTED);
+      ENUM_TO_STR(CL_BUILD_PROGRAM_FAILURE);
+      ENUM_TO_STR(CL_MAP_FAILURE);
+      ENUM_TO_STR(CL_MISALIGNED_SUB_BUFFER_OFFSET);
+      ENUM_TO_STR(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+      ENUM_TO_STR(CL_COMPILE_PROGRAM_FAILURE);
+      ENUM_TO_STR(CL_LINKER_NOT_AVAILABLE);
+      ENUM_TO_STR(CL_LINK_PROGRAM_FAILURE);
+      ENUM_TO_STR(CL_DEVICE_PARTITION_FAILED);
+      ENUM_TO_STR(CL_KERNEL_ARG_INFO_NOT_AVAILABLE);
+      default:
+        return "UNKNOWN CL RESULT";
+    }
+}
+
+
 // find device by pci bus/dev/func
 static gpu_t *find_device(u8 bus, u8 dev, u8 func)
 {
@@ -657,6 +690,7 @@ static int opencl_get_devices()
   int p, numPlatforms, ret = -1;
 
   platforms = opencl_get_platforms(&numPlatforms);
+  printf("Found %d OpenCL platforms.\n", numPlatforms);
   if (platforms == NULL) {
     print(LOG_ERROR, "No OpenCL platforms detected.\n");
     return 0;
@@ -665,7 +699,9 @@ static int opencl_get_devices()
   for (p = 0; p < numPlatforms; ++p) {
     res = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
     if (res != CL_SUCCESS) {
-      print(LOG_ERROR, "CL_DEVICE_TYPE_GPU Failed: Unable to get the number of OpenCL devices.\n");
+      print(LOG_ERROR,
+            "clGetDeviceIDs failed: %s (%d).\n",
+            cl_result_to_string(res), res);
       return 0;
     }
 
