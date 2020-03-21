@@ -184,7 +184,6 @@ static void showhelp(char *program)
     "\n", program);
 }
 
-
 // parse command line options
 static bool load_options(int argc, char *argv[])
 {
@@ -575,6 +574,7 @@ cl_result_to_string (cl_int result)
       ENUM_TO_STR(CL_LINK_PROGRAM_FAILURE);
       ENUM_TO_STR(CL_DEVICE_PARTITION_FAILED);
       ENUM_TO_STR(CL_KERNEL_ARG_INFO_NOT_AVAILABLE);
+      ENUM_TO_STR(CL_INVALID_VALUE);
       default:
         return "UNKNOWN CL RESULT";
     }
@@ -734,7 +734,9 @@ static void opencl_get_devices()
 
        res = clGetDeviceInfo(devices[i], HWLOC_CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL);
         if (res != CL_SUCCESS) {
-          print(LOG_ERROR, "CL_DEVICE_TOPOLOGY_AMD Failed: Unable to map OpenCL device to PCI device.\n");
+          print(LOG_ERROR, "clGetDeviceInfo: CL_DEVICE_TOPOLOGY_AMD Failed. "
+                           "Unable to map OpenCL device to PCI device: %s (%d)\n",
+                           cl_result_to_string(res), res);
           return;
         }
 
